@@ -1,32 +1,25 @@
 package Mojo::UserAgent::UnixSocket;
 use Carp 'carp';
 use Mojo::Base 'Mojo::UserAgent';
-use DummySocket;
+use IO::Socket::UNIX;
 
-our $VERSION = '0.021';
+our $VERSION = '1.0';
 
-sub start {
-    my ($self, $tx, $cb) = @_;
-    if ($tx->req->url->scheme eq 'unix') {
-        my $path = $tx->req->url->path;
+has 'unix_diversion';
 
-        # pull out the sock_path ('host') and url path.
-        my $sock_path = ($path =~ m#(^.+\.sock)\/#)[0];
-        (my $url_path = $path) =~ s/$sock_path//;
-        $tx->req->url->path($url_path);
-        $tx->req->url->host('localhost');
-
-        if (-S $sock_path) {
-            my $sock = DummySocket->new(Peer => $sock_path);
-            $tx->connection($sock);
-        } else {
-            my $message = "$sock_path is not a readable socket.";
-            carp $message;
-            $tx->req->error({message => $message});
-        }
-    }
-    $self->SUPER::start($tx, $cb);
+sub _connect {
+  my ($self, $loop, $peer, $tx, $handle, $cb) = @_;
+  $handle //= IO::Socket::UNIX::Wrapper->new(Peer => $self->unix_diversion);
+  $self->SUPER::_connect($loop, $peer, $tx, $handle, $cb);
 }
+
+package IO::Socket::UNIX::Wrapper;
+use parent 'IO::Socket::UNIX';
+
+sub sockhost { 'localhost' }
+sub sockport { -1 }
+sub peerhost { 'localhost' }
+sub peerport { -1 }
 
 1;
 

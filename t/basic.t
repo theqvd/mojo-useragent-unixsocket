@@ -15,6 +15,8 @@ Test::More->builder->no_ending(1);
 Test::More->builder->use_numbers(0);
 
 my $ua = Mojo::UserAgent::UnixSocket->new;
+
+
 $ua->inactivity_timeout(3);
 my $dir = tempdir CLEANUP => 1;
 
@@ -54,7 +56,9 @@ if ($pid == 0) {
     exit 0;
 }
 
-my $tx = $ua->get("unix://$socket_path/greetings?enthusiastic=1");
+$ua->unix_diversion($socket_path);
+
+my $tx = $ua->get("http://localhost/greetings?enthusiastic=1");
 waitpid($pid, 0);
 
 my $url = $tx->req->url;
